@@ -1,0 +1,23 @@
+{
+  "name": "custom-webpack",
+  "version": "0.1.0",
+  "description": "웹팩 동작 원리를 이해하기 위해 직접 만들어보는 미니 번들러",
+  "type": "module",
+  "scripts": {
+    "build": "tsx src/index.ts"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "@types/babel__core": "^7",
+    "@types/babel__traverse": "^7",
+    "@types/node": "^22",
+    "tsx": "^4",
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "@babel/core": "^7",
+    "@babel/parser": "^7",
+    "@babel/preset-env": "^7",
+    "@babel/traverse": "^7"
+  }
+}
