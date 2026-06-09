@@ -1,11 +1,13 @@
 import { dirname, resolve } from "node:path";
-import { createAsset, type Asset } from "./createAsset.js";
+import { createAsset, resetAssetIds, type Asset } from "./createAsset.js";
 
 /**
  * 엔트리 파일 하나에서 출발해, import 를 타고 들어가며
  * 프로젝트의 모든 모듈을 찾아 "의존성 그래프"(에셋 배열)를 만든다.
  */
 export function createGraph(entry: string): Asset[] {
+  resetAssetIds();
+
   const entryAsset = createAsset(entry);
   const graph: Asset[] = [entryAsset];
 

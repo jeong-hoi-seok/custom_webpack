@@ -1,13 +1,25 @@
 import { readFileSync } from "node:fs";
+import { extname } from "node:path";
 import { parse } from "@babel/parser";
 import _traverse from "@babel/traverse";
 import { transformFromAstSync } from "@babel/core";
+import { cssLoader, jsLoader, jsonLoader, type Loader } from "./loaders.js";
 
 // @babel/traverse 는 CommonJS 모듈이라 ESM 환경에서 default 로 한 번 더 감싸진다.
 // (이게 그 유명한 "traverse is not a function" 의 원인이다.)
 const traverse = (_traverse as unknown as { default: typeof _traverse }).default ?? _traverse;
 
 let nextId = 0;
+
+export function resetAssetIds(): void {
+  nextId = 0;
+}
+
+const loaders: Record<string, Loader> = {
+  ".js": jsLoader,
+  ".json": jsonLoader,
+  ".css": cssLoader,
+};
 
 export interface Asset {
   id: number;
@@ -23,6 +35,22 @@ export interface Asset {
  */
 export function createAsset(filename: string): Asset {
   const content = readFileSync(filename, "utf-8");
+  const extension = extname(filename);
+  const loader = loaders[extension];
+
+  if (!loader) {
+    throw new Error(`No loader configured for ${extension || "unknown"} file: ${filename}`);
+  }
+
+  if (extension !== ".js") {
+    return {
+      id: nextId++,
+      filename,
+      dependencies: [],
+      code: loader(content, filename),
+      mapping: {},
+    };
+  }
 
   // 1) 소스 코드를 AST(추상 구문 트리)로 바꾼다.
   //    문자열 "import { x } from './a'" 는 컴퓨터가 분석하기 어렵지만,
@@ -39,7 +67,7 @@ export function createAsset(filename: string): Asset {
 
   // 3) import/export(ESM) 문법을 브라우저에 없는 require/module.exports(CommonJS)로 변환한다.
   //    브라우저에는 모듈 시스템이 없으므로, 우리가 런타임에서 흉내 낼 형태로 맞추는 것.
-  const { code } = transformFromAstSync(ast, content, {
+  const { code } = transformFromAstSync(ast, loader(content, filename), {
     presets: ["@babel/preset-env"],
   })!;
 

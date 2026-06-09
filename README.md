@@ -25,6 +25,7 @@ webpack, Rollup, Vite 같은 도구가 하는 일은 결국 4단계입니다.
 
 ```
 원본 파일들 ──[읽기]──────────────> 문자열
+            ──[loader]────────────> 파일 타입별 JS 코드
             ──[@babel/parser]─────> AST
             ──[traverse]──────────> 의존성 목록 (import 경로)
             ──[@babel/preset-env]─> CommonJS 코드
@@ -40,11 +41,19 @@ custom_webpack/
 │   ├── createAsset.ts    # 파일 1개 → AST 파싱 → 의존성 추출 → 코드 변환
 │   ├── createGraph.ts    # 엔트리부터 BFS로 의존성 그래프 구성
 │   ├── bundle.ts         # 그래프 → 단일 번들 + require 런타임 구현
+│   ├── loaders.ts        # JS / JSON / CSS 파일 타입별 변환
+│   ├── compiler.ts       # 빌드 전체 흐름과 plugin hook 관리
+│   ├── config.ts         # custom-webpack.config.js 로드
+│   ├── cli.ts            # build / watch / serve 명령
+│   ├── watch.ts          # 파일 변경 감지 후 재빌드
+│   ├── devServer.ts      # dist 정적 파일 제공
 │   └── index.ts          # entry/output 설정 후 전체 실행
 ├── example/src/          # 번들링 대상 예제 앱
 │   ├── index.js          # 엔트리 (message.js, name.js를 import)
 │   ├── message.js        # util.js를 import
 │   ├── name.js
+│   ├── suffix.json
+│   ├── style.css
 │   └── util.js
 └── dist/bundle.js        # 생성 결과물 (gitignore)
 ```
@@ -65,6 +74,26 @@ node dist/bundle.js
 # 출력: Hello, WEBPACK!
 ```
 
+watch / dev server:
+
+```bash
+npm run watch
+npm run serve -- --port 3000
+```
+
+설정 파일:
+
+```js
+// custom-webpack.config.js
+export default {
+  entry: "./example/src/index.js",
+  output: {
+    filename: "./dist/bundle.js",
+  },
+  plugins: [],
+};
+```
+
 ## 각 모듈이 대응하는 webpack 개념
 
 | 파일 | 하는 일 | webpack의 대응 개념 |
@@ -72,6 +101,10 @@ node dist/bundle.js
 | `createAsset.ts` | 파일 1개를 파싱해 의존성 + 코드 추출 | Module |
 | `createGraph.ts` | import를 따라가며 전체 그래프 구성 + 경로 해석 | Dependency Graph / Module Resolution |
 | `bundle.ts` | 모듈을 함수로 감싸고 require 런타임 주입 | Bundling / Runtime |
+| `loaders.ts` | 파일 타입별로 JS 코드로 변환 | Loader |
+| `compiler.ts` | 빌드 흐름과 hook 실행 | Compiler / Plugin System |
+| `config.ts` | 설정 파일 로드와 경로 정규화 | Configuration |
+| `cli.ts` | build / watch / serve 명령 실행 | CLI |
 
 ## 생성된 번들의 구조
 
@@ -98,7 +131,7 @@ node dist/bundle.js
 ## 의도적인 한계 (학습용 단순화 / 다음 단계 떡밥)
 
 - **중복 제거 없음**: 같은 모듈을 여러 곳에서 import하면 중복 포함됨 (실제 webpack은 캐싱).
-- **JS만 처리**: `.css`, `.json`, 이미지는 불가 → Loader 단계에서 해결 예정.
+- **JS/JSON/CSS만 처리**: 이미지는 불가 → Loader 확장으로 해결 예정.
 - **확장자 자동 해석 없음**: `import "./util"`처럼 `.js`를 빼면 못 찾음.
 - **순환 의존성 / 동적 import 미지원.**
 
@@ -106,10 +139,10 @@ node dist/bundle.js
 
 - [x] 1단계: AST 파싱 → 의존성 그래프
 - [x] 2단계: 그래프 → 단일 번들 (require 런타임 구현)
-- [ ] 3단계: Loader 시스템 (CSS, JSON 등 비-JS 처리)
-- [ ] 4단계: Plugin 시스템 (빌드 라이프사이클 훅)
-- [ ] 5단계: config 파일 + CLI (`webpack.config.js`)
-- [ ] 6단계: watch / 간단한 dev server
+- [x] 3단계: Loader 시스템 (CSS, JSON 등 비-JS 처리)
+- [x] 4단계: Plugin 시스템 (빌드 라이프사이클 훅)
+- [x] 5단계: config 파일 + CLI (`custom-webpack.config.js`)
+- [x] 6단계: watch / 간단한 dev server
 
 ## 기술 스택
 
